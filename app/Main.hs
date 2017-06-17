@@ -2,7 +2,7 @@ module Main where
 
 
 import Control.Monad (forever)
-import Lib (derivativeRecognize, epsilon, literal, plus, prettyPrintGrammar, recurse, special, SpecialChar(Alphabetical, Digit, Whitespace), star, union)
+import Lib (epsilon, literal, parse, plus, prettyPrintGrammar, RecognizeResult(..), recurse, special, SpecialChar(Alphabetical, Digit, Whitespace), star, union)
 import System.IO (hFlush, stdout)
 
 
@@ -11,32 +11,38 @@ writeStrLn input =
   putStr input >> hFlush stdout
 
 
+letKeyword :: String -> Maybe String
+letKeyword =
+  parse $ literal 'l' >> literal 'e' >> literal 't'
+
+
 main :: IO ()
 main =
   forever $
     do
       writeStrLn $ prettyPrintGrammar testGrammar ++ " > "
-      testInput <-
+      input <-
         getLine
-      print $ derivativeRecognize testGrammar testInput
+      putStrLn $ prettyPrintResult $ parse testGrammar input
   where
+    prettyPrintResult (Just rest) =
+      "More input: " ++ rest
+    prettyPrintResult Nothing =
+      "FAILURE"
+
     testGrammar =
-      testGrammar1
+      letKeyword
 
-    testGrammar1 =
-      do
-        union [literal 'a' >> literal 'b', literal 'b']
-        literal 'c'
-        special Digit
-        star $ do
-          literal 'd'
-          special Whitespace
-        plus $ literal 'e'
-        special Alphabetical
-        epsilon
+    s =
+      union
+        [ recurse s >> literal '+' >> recurse s
+        , recurse s >> literal '-' >> recurse s
+        , recurse s >> literal '*' >> recurse s
+        , recurse s >> literal '/' >> recurse s
 
-    testGrammar2 =
-      do
-        literal '('
-        star $ recurse testGrammar2
-        literal ')'
+        , literal '(' >> recurse s >> literal ')'
+
+        , literal 'x'
+        , literal 'y'
+        , literal 'z'
+        ]

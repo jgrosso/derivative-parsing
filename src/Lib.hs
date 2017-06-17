@@ -4,12 +4,14 @@
 
 
 module Lib
-  ( derivativeRecognize
+  ( derivativeRecognizer
   , epsilon
   , literal
+  , parse
   , plus
   , prettyPrintGrammar
   , Recognizer
+  , RecognizeResult(..)
   , recurse
   , special
   , SpecialChar(..)
@@ -69,17 +71,19 @@ prettyPrintGrammar grammar =
 
 data RecognizeResult
   = FullyRecognized
-  | MoreInput String
+  | MoreInput String String
   | Unrecognized
 
 
-derivativeRecognize :: Recognizer -> String -> Bool
-derivativeRecognize grammar input =
-  succeeded $ derivativeRecognizer grammar $ MoreInput input
-  where
-    succeeded FullyRecognized = True
-    succeeded (MoreInput _) = True
-    succeeded Unrecognized = False
+parse :: Recognizer -> String -> Maybe (String, String)
+parse recognizer input =
+  case derivativeRecognizer recognizer (MoreInput "" input) of
+    FullyRecognized ->
+      Just (input, "")
+    MoreInput result rest ->
+      Just (drop (length input - length rest) input, result)
+    Unrecognized ->
+      Nothing
 
 
 derivativeRecognizer :: Recognizer -> RecognizeResult -> RecognizeResult
@@ -89,7 +93,7 @@ derivativeRecognizer (Free Epsilon) input =
   case input of
     FullyRecognized ->
       Unrecognized
-    MoreInput rest ->
+    MoreInput _ rest ->
       case rest of
         "" ->
           FullyRecognized
@@ -99,7 +103,7 @@ derivativeRecognizer (Free Epsilon) input =
       Unrecognized
 derivativeRecognizer (Free (Union recognizers next)) input =
   case foldl combineAlternatives Unrecognized recognizers of
-    MoreInput rest ->
+    MoreInput consumed rest ->
       derivativeRecognizer next (MoreInput rest)
     FullyRecognized ->
       FullyRecognized
